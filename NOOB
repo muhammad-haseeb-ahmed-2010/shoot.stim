@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2D Pixel Art Battle Game</title>
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #000;
+    color: white;
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  canvas {
+    border: 2px solid #fff;
+    background-color: #222;
+  }
+  .game-over {
+    position: absolute;
+    font-size: 3em;
+    color: red;
+    display: none;
+  }
+  .win-message {
+    position: absolute;
+    font-size: 3em;
+    color: lime;
+    display: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div class="game-over" id="gameOver">GAME OVER</div>
+<div class="win-message" id="winMessage">YOU WIN!</div>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Set canvas size
+canvas.width = 640;
+canvas.height = 480;
+
+// Game variables
+let player, enemies, bullets, enemyBullets, score, gameOver, winCondition, powerups, shieldActive;
+
+// Pixel art sprites
+const playerSprite = [
+  [1, 0, 0, 1, 1, 0, 0, 1],
+  [1, 0, 1, 1, 1, 1, 0, 1],
+  [1, 1, 1, 0, 0, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1],
+  [0, 0, 1, 1, 1, 1, 0, 0],
+  [0, 1, 1, 0, 0, 1, 1, 0],
+  [1, 1, 0, 1, 1, 0, 1, 1]
+];
+
+const enemySprite = [
+  [0, 1, 1, 1, 1, 0],
+  [1, 1, 0, 0, 1, 1],
+  [1, 0, 0, 0, 0, 1],
+  [1, 0, 0, 0, 0, 1],
+  [1, 1, 0, 0, 1, 1],
+  [0, 1, 1, 1, 1, 0]
+];
+
+const bulletSprite = [
+  [1],
+  [1],
+  [1],
+  [1],
+  [1]
+];
+
+const powerupSprite = [
+  [0, 1, 0],
+  [1, 1, 1],
+  [0, 1, 0]
+];
+
+// Initialize game
+function init() {
+  player = {
+    x: canvas.width / 2 - 16,
+    y: canvas.height - 64,
+    width: 32,
+    height: 32,
+    sprite: playerSprite,
+    speed: 5,
+    dx: 0,
+    dy: 0,
+    health: 100
+  };
+
+  enemies = [];
+  bullets = [];
+  enemyBullets = [];
+  powerups = [];
+  score = 0;
+  gameOver = false;
+  winCondition = 30; // Score required to win
+  shieldActive = false;
+
+  spawnEnemies();
+  spawnPowerups();
+  document.addEventListener('keydown', keyDownHandler);
+  document.addEventListener('keyup', keyUpHandler);
+  canvas.addEventListener('click', shootBullet);
+}
+
+// Spawn enemies
+function spawnEnemies() {
+  setInterval(() => {
+    if (!gameOver && score < winCondition) {
+      const enemy = {
+        x: Math.random() * (canvas.width - 32),
+        y: -32,
+        width: 32,
+        height: 32,
+        sprite: enemySprite,
+        speed: Math.random() * 2 + 1
+      };
+      enemies.push(enemy);
+    }
+  }, 1000);
+}
+
+// Spawn powerups
+function spawnPowerups() {
+  setInterval(() => {
+    if (!gameOver && score < winCondition) {
+      const powerup = {
+        x: Math.random() * (canvas.width - 16),
+        y: -16,
+        width: 16,
+        height: 16,
+        sprite: powerupSprite,
+        speed: 2
+      };
+      powerups.push(powerup);
+    }
+  }, 5000); // Powerups spawn every 5 seconds
+}
+
+// Handle keyboard input
+function keyDownHandler(e) {
+  if (e.key === 'ArrowLeft') player.dx = -player.speed;
+  if (e.key === 'ArrowRight') player.dx = player.speed;
+  if (e.key === 'ArrowUp') player.dy = -player.speed;
+  if (e.key === 'ArrowDown') player.dy = player.speed;
+}
+
+function keyUpHandler(e) {
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') player.dx = 0;
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') player.dy = 0;
+}
+
+// Shoot bullets
+function shootBullet() {
+  const bullet = {
+    x: player.x + player.width / 2 - 4,
+    y: player.y,
+    width: 8,
+    height: 16,
+    sprite: bulletSprite,
+    speed: 7
+  };
+  bullets.push(bullet);
+}
+
+// Enemy shooting
+function enemyShoot() {
+  setInterval(() => {
+    if (!gameOver && score < winCondition) {
+      enemies.forEach(enemy => {
+        const enemyBullet = {
+          x: enemy.x + enemy.width / 2 - 4,
+          y: enemy.y + enemy.height,
+          width: 8,
+          height: 16,
+          sprite: bulletSprite,
+          speed: 5,
+          color: 'yellow'
+        };
+        enemyBullets.push(enemyBullet);
+      });
+    }
+  }, 2000); // Enemies shoot every 2 seconds
+}
+
+// Update game objects
+function update() {
+  // Move player
+  player.x += player.dx;
+  player.y += player.dy;
+
+  // Keep player within bounds
+  if (player.x < 0) player.x = 0;
+  if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+  if (player.y < 0) player.y = 0;
+  if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
+
+  // Move bullets
+  bullets.forEach((bullet, index) => {
+    bullet.y -= bullet.speed;
+    if (bullet.y < 0) bullets.splice(index, 1);
+  });
+
+  // Move enemy bullets
+  enemyBullets.forEach((bullet, index) => {
+    bullet.y += bullet.speed;
+
+    // Check collision with player
+    if (
+      !shieldActive &&
+      player.x < bullet.x + bullet.width &&
+      player.x + player.width > bullet.x &&
+      player.y < bullet.y + bullet.height &&
+      player.y + player.height > bullet.y 
+    ) {
+      player.health -= 10;
+      enemyBullets.splice(index, 1);
+
+      if (player.health <= 0) {
+        endGame();
+      }
+    }
+
+    // Remove bullets that go off-screen
+    if (bullet.y > canvas.height) enemyBullets.splice(index, 1);
+  });
+
+  // Move enemies
+  enemies.forEach((enemy, index) => {
+    enemy.y += enemy.speed;
+
+    // Check collision with player
+    if (
+      player.x < enemy.x + enemy.width &&
+      player.x + player.width > enemy.x &&
+      player.y < enemy.y + enemy.height &&
+      player.y + player.height > enemy.y
+    ) {
+      player.health -= 10;
+      enemies.splice(index, 1);
+
+      if (player.health <= 0) {
+        endGame();
+      }
+    }
+
+    // Remove enemies that go off-screen
+    if (enemy.y > canvas.height) enemies.splice(index, 1);
+  });
+
+  // Move powerups
+  powerups.forEach((powerup, index) => {
+    powerup.y += powerup.speed;
+
+    // Check collision with player
+    if (
+      player.x < powerup.x + powerup.width &&
+      player.x + player.width > powerup.x &&
+      player.y < powerup.y + powerup.height &&
+      player.y + player.height > powerup.y
+    ) {
+      shieldActive = true;
+      powerups.splice(index, 1);
+      setTimeout(() => shieldActive = false, 5000); // Shield lasts 5 seconds
+    }
+
+    // Remove powerups that go off-screen
+    if (powerup.y > canvas.height) powerups.splice(index, 1);
+  });
+
+  // Check bullet-enemy collisions
+  bullets.forEach((bullet, bIndex) => {
+    enemies.forEach((enemy, eIndex) => {
+      if (
+        bullet.x < enemy.x + enemy.width &&
+        bullet.x + bullet.width > enemy.x &&
+        bullet.y < enemy.y + enemy.height &&
+        bullet.y + bullet.height > enemy.y
+      ) {
+        bullets.splice(bIndex, 1);
+        enemies.splice(eIndex, 1);
+        score += 10;
+
+        // Check for win condition
+        if (score >= winCondition) {
+          winGame();
+        }
+      }
+    });
+  });
+}
+
+// Draw pixel art sprite
+function drawSprite(sprite, x, y, width, height, color = 'cyan') {
+  const spriteWidth = sprite[0].length;
+  const spriteHeight = sprite.length;
+  const cellWidth = width / spriteWidth;
+  const cellHeight = height / spriteHeight;
+
+  for (let row = 0; row < spriteHeight; row++) {
+    for (let col = 0; col < spriteWidth; col++) {
+      if (sprite[row][col]) {
+        ctx.fillStyle = color;
+        ctx.fillRect(x + col * cellWidth, y + row * cellHeight, cellWidth, cellHeight);
+      }
+    }
+  }
+}
+
+// Draw game objects
+function draw() {
+  // Clear canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw player
+  drawSprite(player.sprite, player.x, player.y, player.width, player.height);
+
+  // Draw shield if active
+  if (shieldActive) {
+    ctx.strokeStyle = 'blue';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(player.x - 5, player.y - 5, player.width + 10, player.height + 10);
+  }
+
+  // Draw bullets
+  bullets.forEach(bullet => {
+    drawSprite(bullet.sprite, bullet.x, bullet.y, bullet.width, bullet.height);
+  });
+
+  // Draw enemy bullets
+  enemyBullets.forEach(bullet => {
+    drawSprite(bullet.sprite, bullet.x, bullet.y, bullet.width, bullet.height, bullet.color);
+  });
+
+  // Draw enemies
+  enemies.forEach(enemy => {
+    drawSprite(enemy.sprite, enemy.x, enemy.y, enemy.width, enemy.height, 'red');
+  });
+
+  // Draw powerups
+  powerups.forEach(powerup => {
+    drawSprite(powerup.sprite, powerup.x, powerup.y, powerup.width, powerup.height, 'white');
+  });
+
+  // Draw score and health
+  ctx.fillStyle = 'white';
+  ctx.font = '20px Arial';
+  ctx.fillText(`Score: ${score}`, 10, 20);
+  ctx.fillText(`Health: ${player.health}`, 10, 40);
+}
+
+// End the game
+function endGame() {
+  gameOver = true;
+  document.getElementById('gameOver').style.display = 'block';
+}
+
+// Win the game
+function winGame() {
+  gameOver = true;
+  document.getElementById('winMessage').style.display = 'block';
+}
+
+// Game loop
+function gameLoop() {
+  if (!gameOver) {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+  }
+}
+
+// Start the game
+init();
+enemyShoot();
+gameLoop();
+</script>
+</body>
+</html>
